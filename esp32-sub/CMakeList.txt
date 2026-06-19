@@ -1,1 +1,7 @@
-
+idf_component_register(
+    SRCS "main.c" 
+         "proto/sensors.pb.c"
+    INCLUDE_DIRS "." 
+                 "proto"
+    PRIV_REQUIRES nvs_flash esp_wifi esp_event esp_netif mqtt
+)
