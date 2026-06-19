@@ -1,1 +1,17 @@
-
+{
+  "wifi_ssid": "IoT_GrupoXX",
+  "wifi_password": "clave_del_grupo",
+  "mqtt_broker_uri": "mqtt://192.168.10.1:1883",
+  "sensors": {
+    "accel": {
+      "enabled": true,
+      "qos": 0,
+      "rate_hz": 50
+    },
+    "temp": {
+      "enabled": true,
+      "qos": 1,
+      "rate_hz": 0.067
+    }
+  }
+}
