@@ -1,1 +1,23 @@
+syntax = "proto3";
 
+package iot;
+
+message AccelSample {
+  uint32 timestamp_ms = 1;
+  float ax = 2;
+  float ay = 3;
+  float az = 4;
+}
+
+message TempSample {
+  uint32 timestamp_ms = 1;
+  float temperature = 2;
+}
+
+message SensorEnvelope {
+  string source_id = 1;
+  oneof payload {
+    AccelSample accel = 2;
+    TempSample temp = 3;
+  }
+}
