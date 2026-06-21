@@ -7,6 +7,7 @@
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_netif.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -22,6 +23,11 @@
 #define ESP_WIFI_SSID      "IoT_GrupoXX"
 #define ESP_WIFI_PASS      "clave_del_grupo"
 #define BROKER_URI         "mqtt://192.168.10.1:1883"
+
+#define BROKER_IP "192.168.0.10"
+#define BROKER_PORT "1883"
+#define MQTT_TOPIC_TEMP "iot/rpi4/temp"
+#define MQTT_TOPIC_ACCEL "iot/rpi4/accel"
 
 static const char *TAG = "ESP32_SUB";
 

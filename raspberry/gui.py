@@ -11,7 +11,7 @@ import pyqtgraph as pg
 # Asegurar que se puedan importar los archivos generados de protobuf
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
 try:
-    from sensors_pb2 import SensorEnvelope
+    from proto.sensors_pb2 import SensorEnvelope
 except ImportError:
     print("Error: No se encontró sensors_pb2.py. Recuerda compilar el archivo proto primero.")
 
