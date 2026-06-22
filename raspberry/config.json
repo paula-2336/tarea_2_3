@@ -1,6 +1,6 @@
 {
-  "wifi_ssid": "IoT_GrupoXX",
-  "wifi_password": "clave_del_grupo",
+  "wifi_ssid": "Iphone de Juan pablo",
+  "wifi_password": "buenastardes",
   "mqtt_broker_uri": "mqtt://192.168.10.1:1883",
   "sensors": {
     "accel": {

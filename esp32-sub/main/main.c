@@ -2,8 +2,12 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include "esp_event_base.h"
+#include "esp_netif_types.h"
 #include "esp_wifi.h"
 #include "esp_system.h"
+#include "esp_wifi_default.h"
+#include "esp_wifi_types_generic.h"
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -14,18 +18,15 @@
 #include "esp_log.h"
 #include "mqtt_client.h"
 
-// Librerías de Nanopb y los archivos generados a partir de tu sensors.proto
+#include "pb.h"
 #include "pb_decode.h"
-#include "proto/sensors.pb.h"
+#include "pb_encode.h"
+#include "sensors.pb.h"
 
-// --- CONFIGURACIÓN DE RED ---
-// DEBE coincidir con lo que pusiste en raspberry/config.json y hostapd.conf
-#define ESP_WIFI_SSID      "IoT_GrupoXX"
-#define ESP_WIFI_PASS      "clave_del_grupo"
-#define BROKER_URI         "mqtt://192.168.10.1:1883"
+#define ESP_WIFI_SSID      "Iphone de Juan pablo"
+#define ESP_WIFI_PASS      "buenastardes"
+#define BROKER_URI         "mqtt://192.168.0.10:1883"
 
-#define BROKER_IP "192.168.0.10"
-#define BROKER_PORT "1883"
 #define MQTT_TOPIC_TEMP "iot/rpi4/temp"
 #define MQTT_TOPIC_ACCEL "iot/rpi4/accel"
 
@@ -42,32 +43,6 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "Conectado a la Raspberry! IP asignada: " IPSTR, IP2STR(&event->ip_info.ip));
     }
-}
-
-// --- INICIALIZACIÓN DE WI-FI ---
-void wifi_init_sta(void) {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL);
-    esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL);
-
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = ESP_WIFI_SSID,
-            .password = ESP_WIFI_PASS,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-        },
-    };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-
-    ESP_LOGI(TAG, "Inicialización Wi-Fi completada.");
 }
 
 // --- MANEJADOR DE EVENTOS MQTT ---
@@ -92,15 +67,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                 strncmp(event->topic, "iot/rpi4/temp", event->topic_len) == 0) {
                 
                 // 1. Inicializar la estructura del mensaje vacía (Nanopb)
-                SensorEnvelope envelope = SensorEnvelope_init_zero;
+                iot_SensorEnvelope envelope = iot_SensorEnvelope_init_zero;
                 
                 // 2. Crear un stream de entrada desde los bytes recibidos de MQTT
                 pb_istream_t stream = pb_istream_from_buffer((uint8_t*)event->data, event->data_len);
                 
                 // 3. Deserializar el payload
-                if (pb_decode(&stream, SensorEnvelope_fields, &envelope)) {
+                if (pb_decode(&stream, iot_SensorEnvelope_fields, &envelope)) {
                     // Verificar qué tipo de mensaje venía dentro del 'oneof'
-                    if (envelope.which_payload == SensorEnvelope_accel_tag) {
+                    if (envelope.which_payload == iot_SensorEnvelope_accel_tag) {
                         ESP_LOGI(TAG, "[MQTT QoS %d] Acelerómetro - Origen: %s | TS: %lu | ax: %.2f | ay: %.2f | az: %.2f", 
                                  event->qos,
                                  envelope.source_id,
@@ -109,7 +84,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                                  envelope.payload.accel.ay,
                                  envelope.payload.accel.az);
                     } 
-                    else if (envelope.which_payload == SensorEnvelope_temp_tag) {
+                    else if (envelope.which_payload == iot_SensorEnvelope_temp_tag) {
                         ESP_LOGI(TAG, "[MQTT QoS %d] Temperatura - Origen: %s | TS: %lu | Temp: %.2f °C", 
                                  event->qos,
                                  envelope.source_id,
@@ -140,15 +115,35 @@ void app_main(void) {
     ESP_LOGI(TAG, "Iniciando Firmware del Suscriptor IoT...");
 
     // 1. Inicializar la memoria Flash NVS (requerida por el Wi-Fi)
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
+    nvs_flash_init();
 
     // 2. Iniciar conexión Wi-Fi (como Station)
-    wifi_init_sta();
+    esp_netif_init();
+
+    esp_event_loop_create_default();
+    esp_netif_create_default_wifi_sta();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&cfg);
+
+    esp_event_handler_instance_t wifi_any_evh;
+
+    esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, &wifi_any_evh);
+
+    esp_event_handler_instance_t got_ip_evh;
+    esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, &got_ip_evh);
+
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = ESP_WIFI_SSID,
+            .password = ESP_WIFI_PASS,
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+        },
+    };
+    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+
+    esp_wifi_start();
 
     // 3. Dar tiempo a que obtenga IP del DHCP de la Raspberry
     vTaskDelay(pdMS_TO_TICKS(3000)); 

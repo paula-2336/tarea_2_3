@@ -10,7 +10,7 @@ import paho.mqtt.client as mqtt
 # Asegurar que se puedan importar los archivos generados de protobuf
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
 try:
-    from sensors_pb2 import SensorEnvelope
+    from proto.sensors_pb2 import SensorEnvelope
 except ImportError:
     print("Error crítico: No se encontró sensors_pb2.py.")
     sys.exit(1)
@@ -52,7 +52,7 @@ async def accel_publisher(client):
             # Empaquetado con Protobuf
             envelope = SensorEnvelope()
             envelope.source_id = "rpi4"
-            envelope.accel.timestamp_ms = int(time.time() * 1000)
+            envelope.accel.timestamp_ms = int(time.time())
             envelope.accel.ax = ax
             envelope.accel.ay = ay
             envelope.accel.az = az
@@ -84,7 +84,7 @@ async def temp_publisher(client):
             # Empaquetado con Protobuf
             envelope = SensorEnvelope()
             envelope.source_id = "rpi4"
-            envelope.temp.timestamp_ms = int(time.time() * 1000)
+            envelope.temp.timestamp_ms = int(time.time())
             envelope.temp.temperature = temperature
             
             payload = envelope.SerializeToString()
@@ -133,7 +133,7 @@ async def main():
     broker_ip = broker_uri.split("//")[1].split(":")[0]
 
     # 2. Configurar cliente MQTT
-    client = mqtt.Client(client_id="rpi4_simulated_publisher")
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="rpi4_simulated_publisher")
     
     try:
         print(f"Conectando al Broker MQTT en {broker_ip}...")
