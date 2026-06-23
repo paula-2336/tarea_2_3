@@ -25,7 +25,7 @@
 
 #define ESP_WIFI_SSID      "Iphone de Juan pablo"
 #define ESP_WIFI_PASS      "buenastardes"
-#define BROKER_URI         "mqtt://192.168.0.10:1883"
+#define BROKER_URI         "mqtt://192.168.0.1:1883"
 
 #define MQTT_TOPIC_TEMP "iot/rpi4/temp"
 #define MQTT_TOPIC_ACCEL "iot/rpi4/accel"
