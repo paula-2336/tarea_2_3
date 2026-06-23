@@ -1,4 +1,6 @@
-# tarea_2_3
+# tarea 2
+
+Integrantes: Paula Fernández, Juan Pablo Sánchez
 
 El sistema actual consta de dos dispositivos individuales, una raspberry Pi 3 y un esp32, dentro de la raspberry tenemos la interfaz gráfica para los sensores de temperatura y aceleración, además de un broker mqtt y finalmente el publisher que genera los datos.
 
