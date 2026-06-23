@@ -36,3 +36,11 @@ Para ambas aplicaciones necesitamos tener python, crear un ambiente virtual e in
 ## Wifi
 
 Por defecto dentro de config.json el programa usa la red wifi de mi teléfono, para su uso dentro de este mismo archivo y la variable wifi ssid y  wifi pass de main.c en esp32-sub
+
+## Funcionamiento
+
+<figure>
+  <img src="./media/IMG_1.jpg" width="800" height="400" alt="Mandar valor">
+</figure>
+
+Aqui se puede ver una raspberry 3 peleando por su vida para enseñar todos los procesos
