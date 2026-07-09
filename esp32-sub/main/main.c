@@ -76,20 +76,20 @@ void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_t event
 
                 if (!pb_decode(&stream, iot_SensorEnvelope_fields, &envelope)) {
                     ESP_LOGE(TAG, "DECODE FAILED: %s", PB_GET_ERROR(&stream));
-                    return;
+                    break;
                 }
                 if (envelope.which_payload == iot_SensorEnvelope_accel_tag ) {
                     acc_msg++;
-                    ESP_LOGI ( TAG , " Accel : ts = %.lu ax =%.2f ay =%.2f az =%.2f " ,
-                    envelope.payload.accel.timestamp_ms,
+                    ESP_LOGI ( TAG , " Accel : ts = %.lums ax =%+.2f ay =%+.2f az =%+.2f\n " ,
+                    (unsigned long)envelope.payload.accel.timestamp_ms,
                     envelope.payload.accel.ax ,
                     envelope.payload.accel.ay ,
                     envelope.payload.accel.az);
                     }
                 if (envelope.which_payload == iot_SensorEnvelope_temp_tag) {
                     temp_msg++;
-                    ESP_LOGI(TAG, "Temp: ts = %.lu temp = %.1f C", 
-
+                    ESP_LOGI(TAG, "Temp: ts=%lums temp = %.1f C", 
+                        (unsigned long)envelope.payload.temp.timestamp_ms,
                         envelope.payload.temp.temperature);
                 }
             }
@@ -97,7 +97,6 @@ void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_t event
             
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "Desconectado del Broker MQTT");
-            esp_mqtt_client_reconnect(event->client);
             break;
             
         default:
@@ -107,7 +106,7 @@ void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_t event
 
 void subscriber_task() {
     for(;;) {
-        vTaskDelay(1 / portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(30000));
         printf("Mensajes en Aceleración: %.lld", acc_msg);
         printf("Mensajes en Temperatura: %.lld", temp_msg);
         printf("Mensajes en Status: %.lld", status_msg);
@@ -156,6 +155,7 @@ void app_main(void) {
     // 4. Configurar y arrancar Cliente MQTT
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = BROKER_URI,
+        .network.reconnect_timeout_ms = 5000,
     };
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
 
