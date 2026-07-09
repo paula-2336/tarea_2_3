@@ -1,6 +1,6 @@
 {
-  "wifi_ssid": "Iphone de Juan pablo",
-  "wifi_password": "buenastardes",
+  "wifi_ssid": "tarea3",
+  "wifi_password": "password",
   "mqtt_broker_uri": "mqtt://192.168.10.1:1883",
   "sensors": {
     "accel": {
@@ -10,7 +10,7 @@
     },
     "temp": {
       "enabled": true,
-      "qos": 1,
+      "qos": 2,
       "rate_hz": 0.067
     }
   }

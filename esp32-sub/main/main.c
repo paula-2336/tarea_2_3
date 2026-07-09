@@ -21,16 +21,21 @@
 #include "pb.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
+#include "portmacro.h"
 #include "sensors.pb.h"
 
-#define ESP_WIFI_SSID      "Iphone de Juan pablo"
-#define ESP_WIFI_PASS      "buenastardes"
-#define BROKER_URI         "mqtt://192.168.0.1:1883"
+#define ESP_WIFI_SSID      "tarea3"
+#define ESP_WIFI_PASS      "password"
+#define BROKER_URI         "mqtt://192.168.10.1:1883"
 
 #define MQTT_TOPIC_TEMP "iot/rpi4/temp"
 #define MQTT_TOPIC_ACCEL "iot/rpi4/accel"
 
 static const char *TAG = "ESP32_SUB";
+
+long long acc_msg = 0;
+long long temp_msg = 0;
+long long status_msg = 0;
 
 // --- MANEJADOR DE EVENTOS WI-FI ---
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
@@ -46,67 +51,67 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
 }
 
 // --- MANEJADOR DE EVENTOS MQTT ---
-static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
-    esp_mqtt_event_handle_t event = event_data;
-    esp_mqtt_client_handle_t client = event->client;
+void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+    esp_mqtt_event_t *event = event_data;
 
-    switch ((esp_mqtt_event_id_t)event_id) {
+    switch (event_id) {
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "Conectado al Broker MQTT en la Raspberry!");
             // Suscripción a los tópicos (Requisito 5.2)
-            esp_mqtt_client_subscribe(client, "iot/rpi4/accel", 0);
-            esp_mqtt_client_subscribe(client, "iot/rpi4/temp", 0);
-            esp_mqtt_client_subscribe(client, "iot/status/rpi4", 0);
+            esp_mqtt_client_subscribe(event->client, MQTT_TOPIC_ACCEL, 0);
+            esp_mqtt_client_subscribe(event->client, MQTT_TOPIC_TEMP, 0);
+            esp_mqtt_client_subscribe(event->client, "iot/status/rpi4", 1);
             break;
             
         case MQTT_EVENT_DATA:
-            // event->topic y event->data NO son strings terminados en null ('\0')
-            // Se debe usar su longitud (topic_len y data_len) para compararlos y leerlos.
-            
-            if (strncmp(event->topic, "iot/rpi4/accel", event->topic_len) == 0 ||
-                strncmp(event->topic, "iot/rpi4/temp", event->topic_len) == 0) {
-                
-                // 1. Inicializar la estructura del mensaje vacía (Nanopb)
+
+
+            if (strncmp(event->topic, "iot/status/rpi4", event->topic_len) == 0) {
+                status_msg++;
+                printf("[STATUS] %.*s\n", event->data_len, event->data);
+            }
+            else {
                 iot_SensorEnvelope envelope = iot_SensorEnvelope_init_zero;
-                
-                // 2. Crear un stream de entrada desde los bytes recibidos de MQTT
-                pb_istream_t stream = pb_istream_from_buffer((uint8_t*)event->data, event->data_len);
-                
-                // 3. Deserializar el payload
-                if (pb_decode(&stream, iot_SensorEnvelope_fields, &envelope)) {
-                    // Verificar qué tipo de mensaje venía dentro del 'oneof'
-                    if (envelope.which_payload == iot_SensorEnvelope_accel_tag) {
-                        ESP_LOGI(TAG, "[MQTT QoS %d] Acelerómetro - Origen: %s | TS: %lu | ax: %.2f | ay: %.2f | az: %.2f", 
-                                 event->qos,
-                                 envelope.source_id,
-                                 (unsigned long)envelope.payload.accel.timestamp_ms,
-                                 envelope.payload.accel.ax,
-                                 envelope.payload.accel.ay,
-                                 envelope.payload.accel.az);
-                    } 
-                    else if (envelope.which_payload == iot_SensorEnvelope_temp_tag) {
-                        ESP_LOGI(TAG, "[MQTT QoS %d] Temperatura - Origen: %s | TS: %lu | Temp: %.2f °C", 
-                                 event->qos,
-                                 envelope.source_id,
-                                 (unsigned long)envelope.payload.temp.timestamp_ms,
-                                 envelope.payload.temp.temperature);
-                    }
-                } else {
-                    ESP_LOGE(TAG, "Error decodificando Protobuf: %s", PB_GET_ERROR(&stream));
+                pb_istream_t stream = pb_istream_from_buffer ( (uint8_t*)event->data , event->data_len );
+
+                if (!pb_decode(&stream, iot_SensorEnvelope_fields, &envelope)) {
+                    ESP_LOGE(TAG, "DECODE FAILED: %s", PB_GET_ERROR(&stream));
+                    return;
                 }
-            } 
-            else if (strncmp(event->topic, "iot/status/rpi4", event->topic_len) == 0) {
-                // El status es un JSON puro, lo imprimimos tal cual
-                ESP_LOGI(TAG, "[Status Heartbeat] %.*s", event->data_len, event->data);
+                if (envelope.which_payload == iot_SensorEnvelope_accel_tag ) {
+                    acc_msg++;
+                    ESP_LOGI ( TAG , " Accel : ts = %.lu ax =%.2f ay =%.2f az =%.2f " ,
+                    envelope.payload.accel.timestamp_ms,
+                    envelope.payload.accel.ax ,
+                    envelope.payload.accel.ay ,
+                    envelope.payload.accel.az);
+                    }
+                if (envelope.which_payload == iot_SensorEnvelope_temp_tag) {
+                    temp_msg++;
+                    ESP_LOGI(TAG, "Temp: ts = %.lu temp = %.1f C", 
+
+                        envelope.payload.temp.temperature);
+                }
             }
             break;
             
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "Desconectado del Broker MQTT");
+            esp_mqtt_client_reconnect(event->client);
             break;
             
         default:
             break;
+    }
+}
+
+void subscriber_task() {
+    for(;;) {
+        vTaskDelay(1 / portTICK_PERIOD_MS);
+        printf("Mensajes en Aceleración: %.lld", acc_msg);
+        printf("Mensajes en Temperatura: %.lld", temp_msg);
+        printf("Mensajes en Status: %.lld", status_msg);
+
     }
 }
 
@@ -153,6 +158,10 @@ void app_main(void) {
         .broker.address.uri = BROKER_URI,
     };
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+
     esp_mqtt_client_start(client);
+
+    xTaskCreate(subscriber_task, "subscriber_task", 4096, NULL, 5, NULL);
 }
